@@ -123,25 +123,41 @@ const initPlayer = () => {
         // Real FLV
         else if (lowerUrl.includes('.flv')) {
             if (flvjs.isSupported()) {
-                flvPlayer = flvjs.createPlayer({
-                    type: 'flv',
-                    url: props.url,
-                    isLive: true,
-                    cors: true
-                });
-                flvPlayer.attachMediaElement(videoRef.value);
-                flvPlayer.load();
-                try {
-                    const playResult = flvPlayer.play() as any;
-                    if (playResult && playResult.catch) {
-                        playResult.catch((e: any) => console.warn('Auto-play blocked', e));
+                const startFlv = (playUrl: string, isProxyRetry: boolean = false) => {
+                    if (flvPlayer) {
+                        flvPlayer.destroy();
                     }
-                } catch (e: any) {
-                    console.warn('Auto-play blocked', e);
-                }
-                flvPlayer.on(flvjs.Events.ERROR, (errType, errDetail) => {
-                    error.value = `FLV Error: ${errType} - ${errDetail}`;
-                });
+                    flvPlayer = flvjs.createPlayer({
+                        type: 'flv',
+                        url: playUrl,
+                        isLive: true,
+                        cors: true
+                    });
+                    flvPlayer.attachMediaElement(videoRef.value!);
+                    flvPlayer.load();
+                    try {
+                        const playResult = flvPlayer.play() as any;
+                        if (playResult && playResult.catch) {
+                            playResult.catch((e: any) => console.warn('Auto-play blocked', e));
+                        }
+                    } catch (e: any) {
+                        console.warn('Auto-play blocked', e);
+                    }
+
+                    flvPlayer.on(flvjs.Events.ERROR, (errType, errDetail) => {
+                        if (!isProxyRetry && errType === flvjs.ErrorTypes.NETWORK_ERROR) {
+                            console.warn('FLV Network Error detected, attempting CORS proxy...', errDetail);
+                            const proxyUrl = `/api/stream/proxyflv?flvUrl=${encodeURIComponent(props.url)}`;
+                            startFlv(proxyUrl, true);
+                        } else {
+                            error.value = `FLV Error: ${errType} - ${errDetail}`;
+                        }
+                    });
+                };
+
+                // Initial attempt with original URL
+                startFlv(props.url);
+
             } else {
                 error.value = 'FLV is not supported in this browser.';
             }
@@ -177,7 +193,7 @@ onUnmounted(() => {
         <div
             class="absolute top-0 left-0 w-full p-4 bg-gradient-to-b from-black/80 to-transparent z-10 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity duration-300">
             <h2 class="text-white text-lg font-semibold truncate drop-shadow-md">{{ props.title || 'Live Stream Viewer'
-            }}</h2>
+                }}</h2>
 
             <!-- Fullscreen Button -->
             <button @click="toggleFullScreen"

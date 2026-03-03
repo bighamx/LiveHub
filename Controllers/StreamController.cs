@@ -64,4 +64,51 @@ public class StreamController : ControllerBase
             }
         }
     }
+
+    [HttpGet("proxyflv")]
+    public async Task ProxyFlv([FromQuery] string flvUrl, [FromServices] IHttpClientFactory httpClientFactory)
+    {
+        if (string.IsNullOrWhiteSpace(flvUrl) || !flvUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+        {
+            Response.StatusCode = 400;
+            await Response.WriteAsync("Invalid HTTP FLV URL.");
+            return;
+        }
+
+        Response.ContentType = "video/x-flv";
+
+        try
+        {
+            var _httpClient = httpClientFactory.CreateClient("flvProxy");
+            using var request = new HttpRequestMessage(HttpMethod.Get, flvUrl);
+            
+            // Add headers to masquerade as a normal browser/client
+            request.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
+            request.Headers.Add("Accept", "*/*");
+
+            using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, HttpContext.RequestAborted);
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                Response.StatusCode = (int)response.StatusCode;
+                await Response.WriteAsync($"Upstream error: {response.ReasonPhrase}");
+                return;
+            }
+
+            // Stream the response body directly to the client
+            await response.Content.CopyToAsync(Response.Body, HttpContext.RequestAborted);
+        }
+        catch (OperationCanceledException)
+        {
+            // Client disconnected
+        }
+        catch (Exception ex)
+        {
+            if (!Response.HasStarted)
+            {
+                Response.StatusCode = 500;
+                await Response.WriteAsync($"Proxy error: {ex.Message}");
+            }
+        }
+    }
 }

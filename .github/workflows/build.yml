@@ -1,0 +1,75 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [ "main", "master" ]
+    tags:
+      - 'v*' # 当推送形如 v1.0.0 的 tag 时触发 release
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Setup Node.js (for Vue frontend)
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+        cache-dependency-path: 'ClientApp/package-lock.json'
+
+    # 提前安装前端依赖，利用 actions/setup-node 的缓存加速
+    - name: Install Frontend Dependencies
+      working-directory: ./ClientApp
+      run: node -v && npm ci
+
+    - name: Restore .NET dependencies
+      run: dotnet restore
+
+    - name: Build .NET project
+      run: dotnet build --configuration Release --no-restore
+
+    # 此步骤会触发 csproj 中的 PublishRunWebpack target，从而自动执行 npm run build 编译 Vue 项目并打包进发布目录
+    - name: Publish (Automatically builds Vue app)
+      run: dotnet publish --configuration Release --no-build --output ./publish
+
+    - name: Zip publish output
+      run: |
+        cd publish
+        zip -r ../LiveStreamAppWeb.zip .
+        cd ..
+
+    - name: Upload Build Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: published-app
+        path: ./LiveStreamAppWeb.zip
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v') # 只有在打 tag 时才执行 release
+    permissions:
+      contents: write # 必须赋予 write 权限才能创建 release
+
+    steps:
+      - name: Download Build Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: published-app
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: LiveStreamAppWeb.zip
+          generate_release_notes: true
