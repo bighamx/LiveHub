@@ -1,0 +1,33 @@
+# .NET Core
+bin/
+obj/
+appsettings.Development.json
+appsettings.*.json
+!appsettings.json
+*.user
+*.userprefs
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+.vscode/
+
+# Node_modules
+**/node_modules/
+npm-debug.log
+yarn-error.log
+
+# Vue 3 / Vite Build Output
+ClientApp/dist/
+ClientApp/dist-ssr/
+ClientApp/*.local
+ClientApp/.env.*.local
+ClientApp/.env.development.local
+ClientApp/.env.test.local
+ClientApp/.env.production.local
+
+# MacOS
+.DS_Store
+
+# Windows
+Thumbs.db
