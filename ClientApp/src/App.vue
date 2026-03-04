@@ -4,7 +4,7 @@ import { RefreshCw, PlayCircle, Star, History, Menu, MonitorPlay } from 'lucide-
 import VideoPlayer from './components/VideoPlayer.vue';
 import request from 'umi-request';
 
-const workerProxyBase = 'https://proxy.pengcube.workers.dev/';
+const workerProxyBase = 'https://proxy.xbyham.com/';
 const isPagesDomain = window.location.hostname.includes('pages.dev');
 const apiTargetBase = (import.meta.env.VITE_API_BASE as string | undefined)?.trim() || window.location.origin;
 

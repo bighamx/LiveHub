@@ -23,7 +23,7 @@ const isFullScreen = ref(false);
 let flvPlayer: flvjs.Player | null = null;
 let hlsPlayer: Hls | null = null;
 
-const workerProxyBase = 'https://proxy.pengcube.workers.dev/';
+const workerProxyBase = 'https://proxy.xbyham.com/';
 
 const buildWorkerProxyUrl = (targetUrl: string) => {
     return `${workerProxyBase}${(targetUrl)}`;
