@@ -43,17 +43,11 @@ jobs:
     - name: Publish (Automatically builds Vue app)
       run: dotnet publish --configuration Release --no-build --output ./publish
 
-    - name: Zip publish output
-      run: |
-        cd publish
-        zip -r ../LiveStreamAppWeb.zip .
-        cd ..
-
     - name: Upload Build Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: published-app
-        path: ./LiveStreamAppWeb.zip
+        name: LiveStreamAppWeb
+        path: ./publish
 
   release:
     needs: build
@@ -66,7 +60,14 @@ jobs:
       - name: Download Build Artifact
         uses: actions/download-artifact@v4
         with:
-          name: published-app
+          name: LiveStreamAppWeb
+          path: ./publish
+
+      - name: Zip publish output for release
+        run: |
+          cd publish
+          zip -r ../LiveStreamAppWeb.zip .
+          cd ..
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2

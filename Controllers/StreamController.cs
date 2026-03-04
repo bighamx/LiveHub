@@ -111,4 +111,131 @@ public class StreamController : ControllerBase
             }
         }
     }
+
+    [HttpGet("proxym3u8")]
+    public async Task ProxyM3u8([FromQuery] string url, [FromServices] IHttpClientFactory httpClientFactory)
+    {
+        if (string.IsNullOrWhiteSpace(url) || !url.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+        {
+            Response.StatusCode = 400;
+            await Response.WriteAsync("Invalid HTTP M3U8 URL.");
+            return;
+        }
+
+        try
+        {
+            var _httpClient = httpClientFactory.CreateClient("m3u8Proxy");
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            request.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
+            request.Headers.Add("Accept", "*/*");
+
+            using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, HttpContext.RequestAborted);
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                Response.StatusCode = (int)response.StatusCode;
+                await Response.WriteAsync($"Upstream error: {response.ReasonPhrase}");
+                return;
+            }
+
+            var content = await response.Content.ReadAsStringAsync();
+            var baseUri = new Uri(url);
+
+            using var reader = new StringReader(content);
+            using var writer = new StringWriter();
+            string? line;
+            while ((line = await reader.ReadLineAsync()) != null)
+            {
+                if (line.StartsWith("#"))
+                {
+                    // Handle URI="..." in tags like #EXT-X-KEY or #EXT-X-MEDIA
+                    if (line.Contains("URI=\""))
+                    {
+                        line = System.Text.RegularExpressions.Regex.Replace(line, @"URI=""([^""]+)""", m => {
+                            string uriStr = m.Groups[1].Value;
+                            if (uriStr.StartsWith("data:")) return m.Value; // Leave data URIs alone
+                            string absoluteUrl = new Uri(baseUri, uriStr).ToString();
+                            string endpoint = absoluteUrl.Contains(".m3u8", StringComparison.OrdinalIgnoreCase) 
+                                ? "/api/stream/proxym3u8" 
+                                : "/api/stream/proxysegment";
+                            return $"URI=\"{endpoint}?url={Uri.EscapeDataString(absoluteUrl)}\"";
+                        });
+                    }
+                    await writer.WriteLineAsync(line);
+                }
+                else if (!string.IsNullOrWhiteSpace(line))
+                {
+                    // Segment or variant playlist URL
+                    string absoluteUrl = new Uri(baseUri, line.Trim()).ToString();
+                    string endpoint = absoluteUrl.Contains(".m3u8", StringComparison.OrdinalIgnoreCase) 
+                        ? "/api/stream/proxym3u8" 
+                        : "/api/stream/proxysegment";
+                    await writer.WriteLineAsync($"{endpoint}?url={Uri.EscapeDataString(absoluteUrl)}");
+                }
+                else
+                {
+                    await writer.WriteLineAsync(line);
+                }
+            }
+
+            Response.ContentType = "application/vnd.apple.mpegurl";
+            await Response.WriteAsync(writer.ToString());
+        }
+        catch (Exception ex)
+        {
+            if (!Response.HasStarted)
+            {
+                Response.StatusCode = 500;
+                await Response.WriteAsync($"Proxy error: {ex.Message}");
+            }
+        }
+    }
+
+    [HttpGet("proxysegment")]
+    public async Task ProxySegment([FromQuery] string url, [FromServices] IHttpClientFactory httpClientFactory)
+    {
+        if (string.IsNullOrWhiteSpace(url) || !url.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+        {
+            Response.StatusCode = 400;
+            return;
+        }
+
+        try
+        {
+            var _httpClient = httpClientFactory.CreateClient("segmentProxy");
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            request.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
+            request.Headers.Add("Accept", "*/*");
+
+            using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, HttpContext.RequestAborted);
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                Response.StatusCode = (int)response.StatusCode;
+                return;
+            }
+
+            if (response.Content.Headers.ContentType != null)
+            {
+                Response.ContentType = response.Content.Headers.ContentType.ToString();
+            }
+            else
+            {
+                Response.ContentType = "video/MP2T"; // Default for ts
+            }
+
+            // Stream the response body directly to the client
+            await response.Content.CopyToAsync(Response.Body, HttpContext.RequestAborted);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception)
+        {
+            if (!Response.HasStarted)
+            {
+                Response.StatusCode = 500;
+            }
+        }
+    }
 }

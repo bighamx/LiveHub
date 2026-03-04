@@ -68,30 +68,66 @@ const initPlayer = () => {
 
         // HLS (.m3u8)
         if (lowerUrl.includes('.m3u8')) {
-            if (Hls.isSupported()) {
-                const hls = new Hls({
-                    enableWorker: true,
-                    lowLatencyMode: true,
-                });
-                hlsPlayer = hls;
-                hls.loadSource(props.url);
-                hls.attachMedia(videoRef.value);
-                hls.on(Hls.Events.MANIFEST_PARSED, () => {
-                    videoRef.value?.play().catch((e: any) => console.warn('Auto-play blocked', e));
-                });
-                hls.on(Hls.Events.ERROR, (_, data) => {
-                    if (data.fatal) error.value = 'HLS playback error: ' + data.type;
-                });
-            }
-            // Native HLS (Safari)
-            else if (videoRef.value.canPlayType('application/vnd.apple.mpegurl')) {
-                videoRef.value.src = props.url;
-                videoRef.value.addEventListener('loadedmetadata', () => {
-                    videoRef.value?.play().catch((e: any) => console.warn('Auto-play blocked', e));
-                });
-            } else {
-                error.value = 'HLS is not supported in this browser.';
-            }
+            const startHls = (playUrl: string, isProxyRetry: boolean = false) => {
+                if (hlsPlayer) {
+                    hlsPlayer.destroy();
+                    hlsPlayer = null;
+                }
+
+                if (Hls.isSupported()) {
+                    const hls = new Hls({
+                        enableWorker: true,
+                        lowLatencyMode: true,
+                    });
+                    hlsPlayer = hls;
+                    hls.loadSource(playUrl);
+                    hls.attachMedia(videoRef.value!);
+
+                    hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                        videoRef.value?.play().catch((e: any) => console.warn('Auto-play blocked', e));
+                    });
+
+                    hls.on(Hls.Events.ERROR, (_, data) => {
+                        if (data.fatal) {
+                            if (!isProxyRetry && data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+                                console.warn('HLS Network Error detected, attempting CORS proxy...', data);
+                                hls.destroy();
+                                const proxyUrl = `/api/stream/proxym3u8?url=${encodeURIComponent(props.url)}`;
+                                startHls(proxyUrl, true);
+                            } else {
+                                error.value = 'HLS playback error: ' + data.type;
+                            }
+                        }
+                    });
+                }
+                // Native HLS (Safari)
+                else if (videoRef.value!.canPlayType('application/vnd.apple.mpegurl')) {
+                    videoRef.value!.src = playUrl;
+
+                    const onLoadedMetadata = () => {
+                        videoRef.value?.play().catch((e: any) => console.warn('Auto-play blocked', e));
+                    };
+
+                    const onError = () => {
+                        if (!isProxyRetry) {
+                            console.warn('Native HLS Error detected, attempting CORS proxy...');
+                            videoRef.value!.removeEventListener('loadedmetadata', onLoadedMetadata);
+                            videoRef.value!.removeEventListener('error', onError);
+                            const proxyUrl = `/api/stream/proxym3u8?url=${encodeURIComponent(props.url)}`;
+                            startHls(proxyUrl, true);
+                        } else {
+                            error.value = 'HLS playback error (Native).';
+                        }
+                    };
+
+                    videoRef.value!.addEventListener('loadedmetadata', onLoadedMetadata, { once: true });
+                    videoRef.value!.addEventListener('error', onError, { once: true });
+                } else {
+                    error.value = 'HLS is not supported in this browser.';
+                }
+            };
+
+            startHls(props.url);
         }
         // RTMP to FLV via C# backend proxy
         else if (lowerUrl.startsWith('rtmp://')) {
@@ -223,7 +259,7 @@ onUnmounted(() => {
             </button>
         </div>
 
-        <div class="flex-1 relative bg-black flex items-center justify-center">
+        <div class="flex-1 relative bg-black flex items-center justify-center min-h-0">
             <div v-if="error"
                 class="absolute inset-0 flex flex-col items-center justify-center bg-zinc-900 z-20 p-6 text-center">
                 <div class="text-red-500 mb-2">
@@ -238,8 +274,8 @@ onUnmounted(() => {
                 <p>Select a stream to start watching</p>
             </div>
 
-            <!-- Changed object-contain to be more friendly for vertical videos, or at least occupy space cleanly -->
-            <video ref="videoRef" controls autoplay class="w-full h-full object-contain max-h-[100vh]"
+            <!-- Use absolute inset-0 so natural video size doesn't stretch flex items out of bounds -->
+            <video ref="videoRef" controls autoplay class="absolute inset-0 w-full h-full object-contain"
                 v-show="props.url && !error"></video>
         </div>
     </div>
