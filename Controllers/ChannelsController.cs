@@ -33,6 +33,8 @@ public class ChannelsController : ControllerBase
         }
         catch (Exception ex)
         {
+            Console.WriteLine(ex.Message);
+            Console.WriteLine(ex.StackTrace);
             return StatusCode(500, $"Internal server error: {ex.Message}");
         }
     }
@@ -57,6 +59,8 @@ public class ChannelsController : ControllerBase
         }
         catch (Exception ex)
         {
+            Console.WriteLine(ex.Message);
+            Console.WriteLine(ex.StackTrace);
             return StatusCode(500, $"Internal server error: {ex.Message}");
         }
     }
