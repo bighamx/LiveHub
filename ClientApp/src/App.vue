@@ -4,6 +4,23 @@ import { RefreshCw, PlayCircle, Star, History, Menu, MonitorPlay } from 'lucide-
 import VideoPlayer from './components/VideoPlayer.vue';
 import request from 'umi-request';
 
+const workerProxyBase = 'https://proxy.pengcube.workers.dev/';
+const isPagesDomain = window.location.hostname.includes('pages.dev');
+const apiTargetBase = (import.meta.env.VITE_API_BASE as string | undefined)?.trim() || window.location.origin;
+
+const buildApiUrl = (path: string) => {
+  if (!isPagesDomain) {
+    return path;
+  }
+
+  const pathParts = path.split('/').filter(Boolean);
+  const lastSegment = pathParts.length > 0 ? pathParts[pathParts.length - 1] : '';
+  const absoluteApiUrl = path == "/api/channels"
+    ? `http://api.vipmisss.com:81/mf/json.txt`
+    : `http://api.vipmisss.com:81/mf/${lastSegment}`;
+  return `${workerProxyBase}${(absoluteApiUrl)}`;
+};
+
 interface Platform {
   address: string;
   xinimg: string;
@@ -152,7 +169,7 @@ const fetchPlatforms = async () => {
   loadingPlatforms.value = true;
   error.value = null;
   try {
-    const res = await request.get('/api/channels');
+    const res = await request.get(buildApiUrl('/api/channels'));
     if (res && res.pingtai) {
       platforms.value = res.pingtai;
     }
@@ -170,7 +187,7 @@ const fetchStreamers = async (platform: Platform) => {
   streamers.value = [];
 
   try {
-    const res = await request.get(`/api/channels/${platform.address}`);
+    const res = await request.get(buildApiUrl(`/api/channels/${platform.address}`));
     if (res && res.zhubo) {
       // tag streamers with platform info
       streamers.value = res.zhubo.map((z: any) => ({ ...z, platformAddress: platform.address }));
