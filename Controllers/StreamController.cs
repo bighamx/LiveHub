@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.IO;
+using System.Runtime.InteropServices;
 using Microsoft.AspNetCore.Mvc;
 
 namespace LiveStreamAppWeb.Controllers;
@@ -19,9 +21,27 @@ public class StreamController : ControllerBase
 
         Response.ContentType = "video/x-flv";
 
+        string ffmpegPath = "ffmpeg";
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+        {
+            string localFfmpeg = Path.Combine(Directory.GetCurrentDirectory(), "ffmpeg");
+            if (System.IO.File.Exists(localFfmpeg))
+            {
+                ffmpegPath = localFfmpeg;
+            }
+            else if (System.IO.File.Exists("/usr/bin/ffmpeg"))
+            {
+                ffmpegPath = "/usr/bin/ffmpeg";
+            }
+            else if (System.IO.File.Exists("/usr/local/bin/ffmpeg"))
+            {
+                ffmpegPath = "/usr/local/bin/ffmpeg";
+            }
+        }
+
         var processStartInfo = new ProcessStartInfo
         {
-            FileName = "ffmpeg",
+            FileName = ffmpegPath,
             Arguments = $"-i \"{rtmpUrl}\" -c:v copy -c:a copy -f flv -",
             RedirectStandardOutput = true,
             RedirectStandardError = true, // To avoid blocking
