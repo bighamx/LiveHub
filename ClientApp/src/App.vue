@@ -212,11 +212,7 @@ const handleRefresh = () => {
 
 const handleImgError = (e: Event, type: 'platform' | 'streamer') => {
   const target = e.target as HTMLImageElement;
-  if (type === 'platform') {
-    target.src = 'https://placehold.co/40?text=No+Img';
-  } else {
-    target.src = 'https://placehold.co/300x400?text=Stream+Offline';
-  }
+  target.src = 'https://placehold.co/40?text=No+Img';
 };
 
 // Helper for display
@@ -470,6 +466,7 @@ const formatTime = (ts: number) => {
     background-color: #1e293b;
     color: #fff;
   }
+
   &:focus {
     outline: none;
   }
@@ -480,8 +477,13 @@ const formatTime = (ts: number) => {
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .sidebar-content {
@@ -527,6 +529,7 @@ const formatTime = (ts: number) => {
       box-shadow: 0 0 15px rgba(59, 130, 246, 0.2);
       color: #60a5fa;
     }
+
     &.hist-active {
       background-color: rgba(37, 99, 235, 0.2);
       border-color: #3b82f6;
@@ -553,6 +556,7 @@ const formatTime = (ts: number) => {
 
   &.platform-inactive {
     background-color: transparent;
+
     &:hover {
       background-color: #1e293b;
     }
@@ -617,8 +621,15 @@ const formatTime = (ts: number) => {
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: .5; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: .5;
+  }
 }
 
 .section-title {
@@ -671,7 +682,9 @@ const formatTime = (ts: number) => {
   display: flex;
 }
 
-.fav-icon-small, .fav-icon-medium, .fav-icon-large {
+.fav-icon-small,
+.fav-icon-medium,
+.fav-icon-large {
   color: #facc15;
   fill: #facc15;
 }
@@ -880,15 +893,19 @@ const formatTime = (ts: number) => {
     .card-img {
       transform: scale(1.1);
     }
+
     .card-overlay {
       opacity: 0.8;
     }
+
     .play-overlay {
       opacity: 1;
     }
+
     .play-btn {
       transform: translateY(0);
     }
+
     .card-name {
       color: #fff;
     }
@@ -901,6 +918,7 @@ const formatTime = (ts: number) => {
 
   &.card-inactive {
     border-color: #334155;
+
     &:hover {
       border-color: #64748b;
     }
@@ -1025,14 +1043,26 @@ const formatTime = (ts: number) => {
    ------------------------------------- */
 
 @media (min-width: 640px) {
-  .sidebar { width: 18rem; }
-  .sidebar.sidebar-collapsed { width: 72px; }
-  
-  .nav-item.platform-item { padding: 0.5rem; }
-  .nav-item.collapsed-item { flex-direction: row; }
-  
-  .mb-small { margin-bottom: 0; }
-  
+  .sidebar {
+    width: 18rem;
+  }
+
+  .sidebar.sidebar-collapsed {
+    width: 72px;
+  }
+
+  .nav-item.platform-item {
+    padding: 0.5rem;
+  }
+
+  .nav-item.collapsed-item {
+    flex-direction: row;
+  }
+
+  .mb-small {
+    margin-bottom: 0;
+  }
+
   .platform-img {
     width: 2.25rem;
     height: 2.25rem;
@@ -1041,13 +1071,23 @@ const formatTime = (ts: number) => {
     max-width: 36px;
     max-height: 36px;
   }
-  
-  .card-name { font-size: 0.875rem; }
-  
-  .top-pane { padding: 1.5rem 1.5rem 0.5rem 1.5rem; }
-  .bottom-pane { padding: 1.5rem 1.5rem 0.5rem 1.5rem; }
-  .grid-container { padding: 1.25rem; }
-  
+
+  .card-name {
+    font-size: 0.875rem;
+  }
+
+  .top-pane {
+    padding: 1.5rem 1.5rem 0.5rem 1.5rem;
+  }
+
+  .bottom-pane {
+    padding: 1.5rem 1.5rem 0.5rem 1.5rem;
+  }
+
+  .grid-container {
+    padding: 1.25rem;
+  }
+
   .streamer-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 1.25rem;
@@ -1055,19 +1095,26 @@ const formatTime = (ts: number) => {
 }
 
 @media (min-width: 768px) {
-  .streamer-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .streamer-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
 }
 
 @media (min-width: 1024px) {
-  .streamer-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .streamer-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
 }
 
 @media (min-width: 1280px) {
-  .streamer-grid { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+  .streamer-grid {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
 }
 
 @media (min-width: 1536px) {
-  .streamer-grid { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+  .streamer-grid {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+  }
 }
-
 </style>

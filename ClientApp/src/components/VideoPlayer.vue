@@ -23,6 +23,20 @@ const isFullScreen = ref(false);
 let flvPlayer: flvjs.Player | null = null;
 let hlsPlayer: Hls | null = null;
 
+const workerProxyBase = 'https://proxy.pengcube.workers.dev/';
+
+const buildWorkerProxyUrl = (targetUrl: string) => {
+    return `${workerProxyBase}${(targetUrl)}`;
+};
+
+const buildBackendM3u8ProxyUrl = (targetUrl: string) => {
+    return `/api/stream/proxym3u8?url=${encodeURIComponent(targetUrl)}`;
+};
+
+const buildBackendFlvProxyUrl = (targetUrl: string) => {
+    return `/api/stream/proxyflv?flvUrl=${encodeURIComponent(targetUrl)}`;
+};
+
 const toggleFullScreen = async () => {
     if (!videoRef.value) return;
 
@@ -68,7 +82,7 @@ const initPlayer = () => {
 
         // HLS (.m3u8)
         if (lowerUrl.includes('.m3u8')) {
-            const startHls = (playUrl: string, isProxyRetry: boolean = false) => {
+            const startHls = (playUrl: string, retryStage: 'origin' | 'worker' | 'backend' = 'origin') => {
                 if (hlsPlayer) {
                     hlsPlayer.destroy();
                     hlsPlayer = null;
@@ -89,11 +103,14 @@ const initPlayer = () => {
 
                     hls.on(Hls.Events.ERROR, (_, data) => {
                         if (data.fatal) {
-                            if (!isProxyRetry && data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-                                console.warn('HLS Network Error detected, attempting CORS proxy...', data);
+                            if (data.type === Hls.ErrorTypes.NETWORK_ERROR && retryStage !== 'backend') {
+                                console.warn('HLS Network Error detected, retrying with proxy...', data);
                                 hls.destroy();
-                                const proxyUrl = `/api/stream/proxym3u8?url=${encodeURIComponent(props.url)}`;
-                                startHls(proxyUrl, true);
+                                if (retryStage === 'origin') {
+                                    startHls(buildWorkerProxyUrl(props.url), 'worker');
+                                } else {
+                                    startHls(buildBackendM3u8ProxyUrl(props.url), 'backend');
+                                }
                             } else {
                                 error.value = 'HLS playback error: ' + data.type;
                             }
@@ -109,12 +126,15 @@ const initPlayer = () => {
                     };
 
                     const onError = () => {
-                        if (!isProxyRetry) {
-                            console.warn('Native HLS Error detected, attempting CORS proxy...');
+                        if (retryStage !== 'backend') {
+                            console.warn('Native HLS Error detected, retrying with proxy...');
                             videoRef.value!.removeEventListener('loadedmetadata', onLoadedMetadata);
                             videoRef.value!.removeEventListener('error', onError);
-                            const proxyUrl = `/api/stream/proxym3u8?url=${encodeURIComponent(props.url)}`;
-                            startHls(proxyUrl, true);
+                            if (retryStage === 'origin') {
+                                startHls(buildWorkerProxyUrl(props.url), 'worker');
+                            } else {
+                                startHls(buildBackendM3u8ProxyUrl(props.url), 'backend');
+                            }
                         } else {
                             error.value = 'HLS playback error (Native).';
                         }
@@ -159,7 +179,7 @@ const initPlayer = () => {
         // Real FLV
         else if (lowerUrl.includes('.flv')) {
             if (flvjs.isSupported()) {
-                const startFlv = (playUrl: string, isProxyRetry: boolean = false) => {
+                const startFlv = (playUrl: string, retryStage: 'origin' | 'worker' | 'backend' = 'origin') => {
                     if (flvPlayer) {
                         flvPlayer.destroy();
                     }
@@ -181,10 +201,13 @@ const initPlayer = () => {
                     }
 
                     flvPlayer.on(flvjs.Events.ERROR, (errType, errDetail) => {
-                        if (!isProxyRetry && errType === flvjs.ErrorTypes.NETWORK_ERROR) {
-                            console.warn('FLV Network Error detected, attempting CORS proxy...', errDetail);
-                            const proxyUrl = `/api/stream/proxyflv?flvUrl=${encodeURIComponent(props.url)}`;
-                            startFlv(proxyUrl, true);
+                        if (errType === flvjs.ErrorTypes.NETWORK_ERROR && retryStage !== 'backend') {
+                            console.warn('FLV Network Error detected, retrying with proxy...', errDetail);
+                            if (retryStage === 'origin') {
+                                startFlv(buildWorkerProxyUrl(props.url), 'worker');
+                            } else {
+                                startFlv(buildBackendFlvProxyUrl(props.url), 'backend');
+                            }
                         } else {
                             error.value = `FLV Error: ${errType} - ${errDetail}`;
                         }
@@ -280,6 +303,7 @@ onUnmounted(() => {
     position: relative;
 
     &:hover {
+
         .vp-title-overlay,
         .vp-nav {
             opacity: 1;
@@ -293,7 +317,7 @@ onUnmounted(() => {
     left: 0;
     width: 100%;
     padding: 1rem;
-    background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent);
     z-index: 10;
     display: flex;
     align-items: center;
@@ -310,7 +334,7 @@ onUnmounted(() => {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
     margin: 0;
 }
 
@@ -357,8 +381,13 @@ onUnmounted(() => {
     transition: opacity 0.3s;
     pointer-events: none;
 
-    &.left { left: 0; }
-    &.right { right: 0; }
+    &.left {
+        left: 0;
+    }
+
+    &.right {
+        right: 0;
+    }
 }
 
 .vp-wrapper {
@@ -373,7 +402,10 @@ onUnmounted(() => {
 
 .vp-error-screen {
     position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -384,8 +416,17 @@ onUnmounted(() => {
     text-align: center;
     box-sizing: border-box;
 
-    .vp-error-icon { color: #ef4444; margin-bottom: 0.5rem; }
-    .vp-error-text { color: #f87171; font-weight: 500; margin: 0; }
+    .vp-error-icon {
+        color: #ef4444;
+        margin-bottom: 0.5rem;
+    }
+
+    .vp-error-text {
+        color: #f87171;
+        font-weight: 500;
+        margin: 0;
+    }
+
     .vp-error-url {
         color: #71717a;
         font-size: 0.875rem;
@@ -401,15 +442,20 @@ onUnmounted(() => {
     flex-direction: column;
     align-items: center;
 
-    .vp-empty-icon { margin-bottom: 1rem; opacity: 0.5; }
+    .vp-empty-icon {
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
 }
 
 .vp-video {
     position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     width: 100%;
     height: 100%;
     object-fit: contain;
 }
-
 </style>
