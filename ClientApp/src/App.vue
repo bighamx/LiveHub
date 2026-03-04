@@ -8,8 +8,8 @@ const workerProxyBase = 'https://proxy.xbyham.com/';
 const isPagesDomain = window.location.hostname.includes('pages.dev');
 const apiTargetBase = (import.meta.env.VITE_API_BASE as string | undefined)?.trim() || window.location.origin;
 
-const buildApiUrl = (path: string) => {
-    if (!isPagesDomain) {
+const buildApiUrl = (path: string, useProxy = true) => {
+    if (!useProxy) {
         return path;
     }
 
