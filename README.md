@@ -1,4 +1,49 @@
-# LiveStream App Web
+# LiveHub
+
+[English Version Below](#livehub-english-version)
+
+一个全栈 Web 应用程序，专为观看各类直播流而设计。
+
+## 架构 (Architecture)
+- **后端:** ASP.NET Core 8.0 Web API
+  - 代理请求以自动绕过外部 API 的 CORS 跨域限制。
+  - 借助 `ffmpeg` 实现 RTMP 直播流到 HTTP-FLV 的实时转换，从而保证极佳的 Web 浏览器兼容性。
+- **前端:** Vue 3 (Composition API / 组合式 API) + Vite + Tailwind CSS
+  - 定制的流式布局，无论在桌面端宽屏还是移动端竖屏都能提供最佳的视频观看比例。
+  - 原生支持 HLS `.m3u8` 流媒体格式。
+  - 针对 `.flv` 直播流可自动无缝降级使用 `flv.js` 进行播放。
+
+## 核心特性 (Features)
+- 动态直播平台生态与创作者发现列表。
+- 沉浸式 UI 体验，原生支持全屏模式。
+- 快捷导航：支持“上一个 / 下一个”主播一键切换。
+- 智能流媒体解码器：根据是标准 HLS 流还是需要服务器端 FFmpeg 代理的流，自动识别并切换相应的解码方式。
+
+## 环境要求 (Prerequisites)
+- [.NET 8.0 SDK](https://dotnet.microsoft.com/download)
+- [Node.js](https://nodejs.org/) (v18 或更高版本)
+- [FFmpeg](https://ffmpeg.org/) (需已安装并配置到系统环境变量 PATH 中)
+
+## 快速开始 (Getting Started)
+
+### 1. 构建与运行 (Build & Run)
+前端项目已通过 `.csproj` 文件进行了关联配置，在启动 API 服务时会自动安装前端依赖项并协同运行服务。
+
+```bash
+cd LiveStreamAppWeb
+dotnet run
+```
+
+运行后，即可在浏览器中访问控制台输出的地址（例如：`http://localhost:5175`）。
+
+### 2. 开发模式 (Development Mode)
+如果你希望在开发时享受 Vue 组件的模块热替换 (HMR / Hot-Reloading) 体验：
+1. 在 Visual Studio 中或通过命令行运行 `dotnet run` 启动 ASP.NET Core 后端服务。
+2. SPA 代理功能会在后台自动执行 `npm run dev` 以启动基于 Vite 的开发服务器（地址通常为 `http://localhost:44417`），并将浏览器的直接请求无缝路由至 C# 的代理逻辑中！
+
+---
+
+# LiveHub (English Version)
 
 A full-stack web application designed for viewing various live streams. 
 
