@@ -12,10 +12,12 @@ public class StreamController : ControllerBase
     [HttpGet]
     public async Task GetStream([FromQuery] string rtmpUrl)
     {
-        if (string.IsNullOrWhiteSpace(rtmpUrl) || !rtmpUrl.StartsWith("rtmp://", StringComparison.OrdinalIgnoreCase))
+        if (string.IsNullOrWhiteSpace(rtmpUrl) || 
+            (!rtmpUrl.StartsWith("rtmp://", StringComparison.OrdinalIgnoreCase) && 
+             !rtmpUrl.StartsWith("rtsp://", StringComparison.OrdinalIgnoreCase)))
         {
             Response.StatusCode = 400;
-            await Response.WriteAsync("Invalid RTMP URL.");
+            await Response.WriteAsync("Invalid stream URL.");
             return;
         }
 
@@ -39,10 +41,14 @@ public class StreamController : ControllerBase
             }
         }
 
+        string inputArgs = rtmpUrl.StartsWith("rtsp://", StringComparison.OrdinalIgnoreCase) 
+            ? $"-rtsp_transport tcp -i \"{rtmpUrl}\"" 
+            : $"-i \"{rtmpUrl}\"";
+
         var processStartInfo = new ProcessStartInfo
         {
             FileName = ffmpegPath,
-            Arguments = $"-i \"{rtmpUrl}\" -c:v copy -c:a copy -f flv -",
+            Arguments = $"{inputArgs} -c:v copy -c:a copy -f flv -",
             RedirectStandardOutput = true,
             RedirectStandardError = true, // To avoid blocking
             UseShellExecute = false,
