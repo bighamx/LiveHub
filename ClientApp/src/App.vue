@@ -210,7 +210,7 @@ const handleRefresh = () => {
   }
 };
 
-const handleImgError = (e: Event, type: 'platform' | 'streamer') => {
+const handleImgError = (e: Event, _type: 'platform' | 'streamer') => {
   const target = e.target as HTMLImageElement;
   target.src = 'https://placehold.co/40?text=No+Img';
 };
