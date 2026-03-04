@@ -224,59 +224,192 @@ onUnmounted(() => {
 </script>
 
 <template>
-    <div class="flex flex-col h-full w-full bg-black rounded-xl overflow-hidden shadow-2xl relative group">
+    <div class="vp-container">
         <!-- Title overlay -->
-        <div
-            class="absolute top-0 left-0 w-full p-4 bg-gradient-to-b from-black/80 to-transparent z-10 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-            <h2 class="text-white text-lg font-semibold truncate drop-shadow-md">{{ props.title || 'Live Stream Viewer'
-                }}</h2>
-
-            <!-- Fullscreen Button -->
-            <button @click="toggleFullScreen"
-                class="p-2 rounded-full bg-black/40 hover:bg-white/20 text-white backdrop-blur-sm transition-all shadow-lg"
-                title="Toggle Fullscreen">
+        <div class="vp-title-overlay">
+            <h2 class="vp-title">{{ props.title || 'Live Stream Viewer' }}</h2>
+            <button @click="toggleFullScreen" class="vp-btn" title="Toggle Fullscreen">
                 <Maximize v-if="!isFullScreen" :size="20" />
                 <Minimize v-else :size="20" />
             </button>
         </div>
 
         <!-- Navigation Controls (Left/Right) -->
-        <div
-            class="absolute inset-y-0 left-0 flex items-center px-4 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
-            <button v-if="props.hasPrev" @click.stop="emit('prev')"
-                class="pointer-events-auto p-3 rounded-full bg-black/40 hover:bg-white/20 text-white backdrop-blur-sm transition-transform hover:scale-110 shadow-lg"
+        <div class="vp-nav left">
+            <button v-if="props.hasPrev" @click.stop="emit('prev')" class="vp-btn large nav-btn"
                 title="Previous Stream">
                 <ChevronLeft :size="32" />
             </button>
         </div>
 
-        <div
-            class="absolute inset-y-0 right-0 flex items-center px-4 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
-            <button v-if="props.hasNext" @click.stop="emit('next')"
-                class="pointer-events-auto p-3 rounded-full bg-black/40 hover:bg-white/20 text-white backdrop-blur-sm transition-transform hover:scale-110 shadow-lg"
-                title="Next Stream">
+        <div class="vp-nav right">
+            <button v-if="props.hasNext" @click.stop="emit('next')" class="vp-btn large nav-btn" title="Next Stream">
                 <ChevronRight :size="32" />
             </button>
         </div>
 
-        <div class="flex-1 relative bg-black flex items-center justify-center min-h-0">
-            <div v-if="error"
-                class="absolute inset-0 flex flex-col items-center justify-center bg-zinc-900 z-20 p-6 text-center">
-                <div class="text-red-500 mb-2">
+        <div class="vp-wrapper">
+            <div v-if="error" class="vp-error-screen">
+                <div class="vp-error-icon">
                     <AlertCircle :size="48" />
                 </div>
-                <p class="text-red-400 font-medium">{{ error }}</p>
-                <p class="text-zinc-500 text-sm w-full mt-4 break-words">URL: {{ props.url }}</p>
+                <p class="vp-error-text">{{ error }}</p>
+                <p class="vp-error-url">URL: {{ props.url }}</p>
             </div>
 
-            <div v-else-if="!props.url" class="text-zinc-600 flex flex-col items-center">
-                <MonitorPlay :size="64" class="mb-4 opacity-50" />
+            <div v-else-if="!props.url" class="vp-empty-screen">
+                <MonitorPlay :size="64" class="vp-empty-icon" />
                 <p>Select a stream to start watching</p>
             </div>
 
-            <!-- Use absolute inset-0 so natural video size doesn't stretch flex items out of bounds -->
-            <video ref="videoRef" controls autoplay class="absolute inset-0 w-full h-full object-contain"
-                v-show="props.url && !error"></video>
+            <video ref="videoRef" controls autoplay class="vp-video" v-show="props.url && !error"></video>
         </div>
     </div>
 </template>
+
+<style scoped lang="scss">
+.vp-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    background-color: #000;
+    border-radius: 0.75rem;
+    overflow: hidden;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    position: relative;
+
+    &:hover {
+        .vp-title-overlay,
+        .vp-nav {
+            opacity: 1;
+        }
+    }
+}
+
+.vp-title-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    padding: 1rem;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    opacity: 0;
+    box-sizing: border-box;
+    transition: opacity 0.3s;
+}
+
+.vp-title {
+    color: #fff;
+    font-size: 1.125rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+    margin: 0;
+}
+
+.vp-btn {
+    padding: 0.5rem;
+    border-radius: 9999px;
+    background-color: rgba(0, 0, 0, 0.4);
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    backdrop-filter: blur(4px);
+    transition: all 0.2s;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &:hover {
+        background-color: rgba(255, 255, 255, 0.2);
+    }
+
+    &.large {
+        padding: 0.75rem;
+    }
+
+    &.nav-btn {
+        pointer-events: auto;
+
+        &:hover {
+            transform: scale(1.1);
+        }
+    }
+}
+
+.vp-nav {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    padding: 0 1rem;
+    z-index: 10;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+
+    &.left { left: 0; }
+    &.right { right: 0; }
+}
+
+.vp-wrapper {
+    flex: 1;
+    position: relative;
+    background-color: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+}
+
+.vp-error-screen {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background-color: #18181b;
+    z-index: 20;
+    padding: 1.5rem;
+    text-align: center;
+    box-sizing: border-box;
+
+    .vp-error-icon { color: #ef4444; margin-bottom: 0.5rem; }
+    .vp-error-text { color: #f87171; font-weight: 500; margin: 0; }
+    .vp-error-url {
+        color: #71717a;
+        font-size: 0.875rem;
+        width: 100%;
+        margin-top: 1rem;
+        word-break: break-all;
+    }
+}
+
+.vp-empty-screen {
+    color: #52525b;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    .vp-empty-icon { margin-bottom: 1rem; opacity: 0.5; }
+}
+
+.vp-video {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+</style>
