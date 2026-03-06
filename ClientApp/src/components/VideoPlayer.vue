@@ -3,6 +3,7 @@ import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { Maximize, Minimize, ChevronLeft, ChevronRight, AlertCircle, MonitorPlay } from 'lucide-vue-next';
 import Hls from 'hls.js';
 import flvjs from 'flv.js';
+import { buildWorkerProxyUrl, buildBackendM3u8ProxyUrl, buildBackendFlvProxyUrl } from '../utils/constants';
 
 const props = defineProps<{
     url: string;
@@ -23,20 +24,6 @@ const isFullScreen = ref(false);
 let flvPlayer: flvjs.Player | null = null;
 let hlsPlayer: Hls | null = null;
 
-const workerProxyBase = 'https://proxy.xbyham.com/';
-
-const buildWorkerProxyUrl = (targetUrl: string) => {
-    return `${workerProxyBase}${(targetUrl)}`;
-};
-
-const buildBackendM3u8ProxyUrl = (targetUrl: string) => {
-    return `/api/stream/proxym3u8?url=${encodeURIComponent(targetUrl)}`;
-};
-
-const buildBackendFlvProxyUrl = (targetUrl: string) => {
-    return `/api/stream/proxyflv?flvUrl=${encodeURIComponent(targetUrl)}`;
-};
-
 const toggleFullScreen = async () => {
     if (!videoRef.value) return;
 
@@ -48,16 +35,17 @@ const toggleFullScreen = async () => {
             await document.exitFullscreen();
             isFullScreen.value = false;
         }
-    } catch (err: any) {
+    } catch (err: unknown) {
         console.error('Error attempting to enable fullscreen:', err);
     }
 };
 
-// Listen for native full screen exits (e.g., pressing ESC)
+const onFullscreenChange = () => {
+    isFullScreen.value = !!document.fullscreenElement;
+};
+
 onMounted(() => {
-    document.addEventListener('fullscreenchange', () => {
-        isFullScreen.value = !!document.fullscreenElement;
-    });
+    document.addEventListener('fullscreenchange', onFullscreenChange);
 });
 
 const cleanupPlayers = () => {
@@ -98,7 +86,7 @@ const initPlayer = () => {
                     hls.attachMedia(videoRef.value!);
 
                     hls.on(Hls.Events.MANIFEST_PARSED, () => {
-                        videoRef.value?.play().catch((e: any) => console.warn('Auto-play blocked', e));
+                        videoRef.value?.play().catch((e: unknown) => console.warn('Auto-play blocked', e));
                     });
 
                     hls.on(Hls.Events.ERROR, (_, data) => {
@@ -122,7 +110,7 @@ const initPlayer = () => {
                     videoRef.value!.src = playUrl;
 
                     const onLoadedMetadata = () => {
-                        videoRef.value?.play().catch((e: any) => console.warn('Auto-play blocked', e));
+                        videoRef.value?.play().catch((e: unknown) => console.warn('Auto-play blocked', e));
                     };
 
                     const onError = () => {
@@ -162,12 +150,9 @@ const initPlayer = () => {
                 flvPlayer.attachMediaElement(videoRef.value);
                 flvPlayer.load();
                 try {
-                    const playResult = flvPlayer.play() as any;
-                    if (playResult && playResult.catch) {
-                        playResult.catch((e: any) => console.warn('Auto-play blocked', e));
-                    }
-                } catch (e: any) {
-                    console.warn('Auto-play blocked', e);
+                    void flvPlayer.play();
+                } catch {
+                    console.warn('Auto-play blocked');
                 }
                 flvPlayer.on(flvjs.Events.ERROR, (errType, errDetail) => {
                     error.value = `FLV Error: ${errType} - ${errDetail}`;
@@ -182,6 +167,7 @@ const initPlayer = () => {
                 const startFlv = (playUrl: string, retryStage: 'origin' | 'worker' | 'backend' = 'origin') => {
                     if (flvPlayer) {
                         flvPlayer.destroy();
+                        flvPlayer = null;
                     }
                     flvPlayer = flvjs.createPlayer({
                         type: 'flv',
@@ -192,12 +178,9 @@ const initPlayer = () => {
                     flvPlayer.attachMediaElement(videoRef.value!);
                     flvPlayer.load();
                     try {
-                        const playResult = flvPlayer.play() as any;
-                        if (playResult && playResult.catch) {
-                            playResult.catch((e: any) => console.warn('Auto-play blocked', e));
-                        }
-                    } catch (e: any) {
-                        console.warn('Auto-play blocked', e);
+                        void flvPlayer.play();
+                    } catch {
+                        console.warn('Auto-play blocked');
                     }
 
                     flvPlayer.on(flvjs.Events.ERROR, (errType, errDetail) => {
@@ -224,10 +207,10 @@ const initPlayer = () => {
         // MP4 or generic fallback
         else {
             videoRef.value.src = props.url;
-            videoRef.value.play().catch((e: any) => console.warn('Auto-play blocked', e));
+            videoRef.value.play().catch((e: unknown) => console.warn('Auto-play blocked', e));
         }
-    } catch (err: any) {
-        error.value = err.message || 'Failed to initialize player';
+    } catch (err: unknown) {
+        error.value = err instanceof Error ? err.message : 'Failed to initialize player';
     }
 };
 
@@ -243,6 +226,7 @@ onMounted(() => {
 
 onUnmounted(() => {
     cleanupPlayers();
+    document.removeEventListener('fullscreenchange', onFullscreenChange);
 });
 </script>
 

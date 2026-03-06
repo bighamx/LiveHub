@@ -1,25 +1,10 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue';
+import { ref, onMounted, computed, watch, defineAsyncComponent } from 'vue';
 import { RefreshCw, PlayCircle, Star, History, Menu, MonitorPlay } from 'lucide-vue-next';
-import VideoPlayer from './components/VideoPlayer.vue';
 import request from 'umi-request';
+import { buildApiUrl, safeParseJson, safeSetJson } from './utils/constants';
 
-const workerProxyBase = 'https://proxy.xbyham.com/';
-const isPagesDomain = window.location.hostname.includes('pages.dev');
-const apiTargetBase = (import.meta.env.VITE_API_BASE as string | undefined)?.trim() || window.location.origin;
-
-const buildApiUrl = (path: string, useProxy = true) => {
-    if (!useProxy) {
-        return path;
-    }
-
-    const pathParts = path.split('/').filter(Boolean);
-    const lastSegment = pathParts.length > 0 ? pathParts[pathParts.length - 1] : '';
-    const absoluteApiUrl = path == "/api/channels"
-        ? `http://api.vipmisss.com:81/mf/json.txt`
-        : `http://api.vipmisss.com:81/mf/${lastSegment}`;
-    return `${workerProxyBase}${(absoluteApiUrl)}`;
-};
+const VideoPlayer = defineAsyncComponent(() => import('./components/VideoPlayer.vue'));
 
 interface Platform {
     address: string;
@@ -56,22 +41,20 @@ const error = ref<string | null>(null);
 // UI State
 const isSidebarCollapsed = ref(window.innerWidth < 768);
 
-// LocalStorage States
-const favoritePlatforms = ref<string[]>(JSON.parse(localStorage.getItem('livehub_fav_platforms') || '[]'));
-const favoriteStreamers = ref<Streamer[]>(JSON.parse(localStorage.getItem('livehub_fav_streamers') || '[]'));
-const watchHistory = ref<HistoryItem[]>(JSON.parse(localStorage.getItem('livehub_history') || '[]'));
+const favoritePlatforms = ref<string[]>(safeParseJson<string[]>('livehub_fav_platforms', []));
+const favoriteStreamers = ref<Streamer[]>(safeParseJson<Streamer[]>('livehub_fav_streamers', []));
+const watchHistory = ref<HistoryItem[]>(safeParseJson<HistoryItem[]>('livehub_history', []));
 
-// Watchers for LocalStorage
 watch(favoritePlatforms, (newVal) => {
-    localStorage.setItem('livehub_fav_platforms', JSON.stringify(newVal));
+    safeSetJson('livehub_fav_platforms', newVal);
 }, { deep: true });
 
 watch(favoriteStreamers, (newVal) => {
-    localStorage.setItem('livehub_fav_streamers', JSON.stringify(newVal));
+    safeSetJson('livehub_fav_streamers', newVal);
 }, { deep: true });
 
 watch(watchHistory, (newVal) => {
-    localStorage.setItem('livehub_history', JSON.stringify(newVal));
+    safeSetJson('livehub_history', newVal);
 }, { deep: true });
 
 const togglePlatformFavorite = (platformAddress: string, e: Event) => {
@@ -173,7 +156,7 @@ const fetchPlatforms = async () => {
         if (res && res.pingtai) {
             platforms.value = res.pingtai;
         }
-    } catch (err: any) {
+    } catch (err: unknown) {
         console.error(err);
         error.value = 'Failed to load platforms. This could be due to a backend issue.';
     } finally {
@@ -192,7 +175,7 @@ const fetchStreamers = async (platform: Platform) => {
             // tag streamers with platform info
             streamers.value = res.zhubo.map((z: any) => ({ ...z, platformAddress: platform.address }));
         }
-    } catch (err) {
+    } catch (err: unknown) {
         console.error(err);
         error.value = 'Failed to load streamers for this platform.';
     } finally {
@@ -384,10 +367,10 @@ const formatTime = (ts: number) => {
                                 </button>
                             </div>
                             <div class="card-info">
-                                <span class="card-name">{{ (s as any).displayName || s.title }}</span>
-                                <span v-if="selectedPlatform.address === 'history' && (s as any).timestamp"
+                                <span class="card-name">{{ s.displayName || s.title }}</span>
+                                <span v-if="selectedPlatform.address === 'history' && s.timestamp"
                                     class="card-time">
-                                    {{ formatTime((s as any).timestamp) }}
+                                    {{ formatTime(s.timestamp!) }}
                                 </span>
                             </div>
                         </div>

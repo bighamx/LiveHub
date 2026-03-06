@@ -1,6 +1,6 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
-// https://vite.dev/config/
+
 export default defineConfig({
   plugins: [
     vue(),
@@ -12,6 +12,18 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:5175',
         changeOrigin: true,
+      }
+    }
+  },
+  build: {
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'hls': ['hls.js'],
+          'flv': ['flv.js'],
+          'vue-vendor': ['vue'],
+        }
       }
     }
   }
